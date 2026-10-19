@@ -540,9 +540,24 @@ function setBaseDeltas(app: ConfigApp) {
     if ((e as any)?.code === 'ENOENT') {
       debug(`No default deltas found at ${defaultsPath.toString()}`)
       return
-    } else {
-      console.log(e)
     }
+    // An unreadable file holds the vessel's base data (name, MMSI, design).
+    // Carrying on with an empty editor would let the next save overwrite it
+    // for good, so keep it aside, say so loudly, and start as if it were absent.
+    const aside = `${defaultsPath}.corrupt-${new Date().toISOString().replace(/[:.]/g, '-')}`
+    try {
+      fs.renameSync(defaultsPath, aside)
+      console.error(
+        `${defaultsPath} could not be read (${(e as Error)?.message}); kept it as ${aside}. ` +
+          'Vessel base data (name, MMSI, design) must be restored from it or re-entered.'
+      )
+    } catch (renameError) {
+      console.error(
+        `${defaultsPath} could not be read (${(e as Error)?.message}) and could not be kept aside ` +
+          `(${(renameError as Error)?.message})`
+      )
+    }
+    return
   }
   return true
 }

@@ -25,6 +25,9 @@ const SELF_VESSEL = 'vessels.self'
 
 class DeltaEditor {
   deltas: any[]
+  // Saves of one editor run one after another: each writes the state as it is
+  // when its turn comes, so an older snapshot can never land after a newer one.
+  private saving: Promise<void> = Promise.resolve()
 
   constructor() {
     this.deltas = []
@@ -46,7 +49,13 @@ class DeltaEditor {
   }
 
   save(filename: string): Promise<void> {
-    return atomicWriteFile(filename, JSON.stringify(this.deltas, null, 2))
+    const next = this.saving
+      .catch(() => {})
+      .then(() =>
+        atomicWriteFile(filename, JSON.stringify(this.deltas, null, 2))
+      )
+    this.saving = next
+    return next
   }
 
   setValue(context: string, path: string, value: any) {
